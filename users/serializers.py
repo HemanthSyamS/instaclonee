@@ -96,3 +96,4 @@ class NetworkEdgeFollowersSerializer(ModelSerializer):
     class Meta:
         model = NetworkEdge
         fields = ('from_user', )
+
