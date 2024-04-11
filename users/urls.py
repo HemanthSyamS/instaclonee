@@ -14,4 +14,6 @@ urlpatterns = [
     path('list/', views.user_list, name = "user_list"),
     path('<int:pk>/', views.UserProfileViewUpdate.as_view(), name = 'get_single_user'),
     path('update/', views.UserProfileViewUpdate.as_view(), name = 'update_user_profile'),
+    path('edge/', views.NetworkEdgeView.as_view(), name = 'follow_user'),
+    
 ]

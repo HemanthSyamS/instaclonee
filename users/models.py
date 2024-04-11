@@ -17,3 +17,12 @@ class UserProfile(TimeStamp):
     profile_pic_url = models.FileField(upload_to='profile_pic/', blank=True)
     bio = models.CharField(max_length=255, blank=True )
     is_verified = models.BooleanField(default=False)
+
+
+class NetworkEdge(TimeStamp):
+
+    from_user = models.ForeignKey(UserProfile, related_name= "following", on_delete=models.CASCADE)
+    to_user = models.ForeignKey(UserProfile, related_name= "followers", on_delete=models.CASCADE)
+
+    class Meta : 
+        unique_together = ('from_user', 'to_user')
