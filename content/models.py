@@ -23,3 +23,20 @@ class PostMedia(TimeStamp):
     class Meta:
         unique_together = ('sequence_index', 'post', )
 
+class PostLikes(TimeStamp):
+
+    post = models.ForeignKey(UserPost, on_delete=models.CASCADE,
+                                related_name='likes')
+    liked_by = models.ForeignKey(UserProfile, on_delete=models.CASCADE,
+                                    related_name='liked_posts')
+
+    class Meta:
+        unique_together = ('post', 'liked_by', )
+
+class PostComments(TimeStamp):
+    post = models.ForeignKey(UserPost, on_delete=models.CASCADE,
+                                related_name='comments')
+    
+    author = models.ForeignKey(UserProfile, on_delete=models.CASCADE,
+                                    related_name='comments_made')
+    text = models.CharField(max_length=255)

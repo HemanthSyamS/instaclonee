@@ -2,11 +2,14 @@ from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import UserPost
+from .models import UserPost, PostLikes, PostComments
 from rest_framework import mixins
 from .serializers import UserPostCreateSerializer, PostMediaCreateSerializer, PostFeedSerializer
 from .filters import CurrentUserFollowingFilterBackend
 from rest_framework.response import Response
+from rest_framework import viewsets
+from .serializers import PostLikeCreateSerializer, PostLikesViewSerializer, PostCommentCreateSerializer
+from .permissions import IsOwnerOrReadOnly
 
 # Create your views here.
 
@@ -78,3 +81,55 @@ class PostViewUpdateDeleteView(generics.GenericAPIView, mixins.UpdateModelMixin,
             response_status = status.HTTP_404_NOT_FOUND
 
         return Response({"data" : None, "message" : message}, status= response_status)
+
+class PostLikeViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
+                        mixins.DestroyModelMixin, mixins.ListModelMixin):
+
+    permission_classes = [IsAuthenticated, ]
+    authentication_classes = [JWTAuthentication, ]
+    queryset = PostLikes.objects.all()
+    serializer_class = PostLikeCreateSerializer
+
+    def get_serializer_context(self):
+        return {"current_user" : self.request.user.profile}
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return PostLikesViewSerializer
+        return self.serializer_class
+
+    def list(self, request):
+
+        post_likes = self.queryset.filter(post_id = request.query_params['post_id'])
+
+        page = self.paginate_queryset(post_likes)
+
+        if page:
+            serializer = self.get_serializer(page, many = True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(post_likes, many = True)
+
+        return Response(serializer.data)
+
+class PostCommentViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
+                            mixins.DestroyModelMixin):
+
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, ]
+    authentication_classes = [JWTAuthentication, ]
+    queryset = PostComments.objects.all()
+    serializer_class = PostCommentCreateSerializer
+
+    def get_serializer_context(self):
+        return {"current_user" : self.request.user.profile}
+
+    def list(self, request):
+        post_comments = self.queryset.filter(post_id = request.query_params['post_id'])
+        page = self.paginate_queryset(post_comments)
+
+        if page:
+            serializer = self.get_serializer(page, many = True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(post_comments, many = True)
+
+        return Response(serializer.data)
+

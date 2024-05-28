@@ -1,7 +1,8 @@
 from rest_framework.serializers import ModelSerializer
-from .models import UserPost, PostMedia
-from users.serializers import UserViewSerializer
+from .models import UserPost, PostMedia, PostLikes, PostComments
+from users.serializers import UserListSerializer, UserViewSerializer
 from users.models import UserProfile
+from django.contrib.auth.models import User
 
 class UserPostCreateSerializer(ModelSerializer):
 
@@ -38,3 +39,28 @@ class PostFeedSerializer(ModelSerializer):
         fields = '__all__'
         include = ('media', )
 
+class PostLikeCreateSerializer(ModelSerializer):
+
+    def create(self, validated_data):
+        validated_data['liked_by'] = self.context["current_user"]
+        return PostLikes.objects.create(**validated_data)
+
+    class Meta:
+        model = PostLikes
+        fields = ('id', 'post', )
+
+class PostLikesViewSerializer(ModelSerializer):
+    liked_by = UserListSerializer()
+    class Meta:
+        model = PostLikes
+        fields = ('liked_by', )
+
+class PostCommentCreateSerializer(ModelSerializer):
+
+    def create(self, validated_data):
+        validated_data['author'] = self.context["current_user"]
+        return PostComments.objects.create(**validated_data)
+    
+    class Meta: 
+        model = PostComments
+        fields = ('id', 'text', 'post', )
