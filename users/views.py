@@ -10,6 +10,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .serializers import NetworkEdgeCreateSerializer, NetworkEdgeFollowersSerializer, NetworkEdgeFollowingSerializer
+from django.contrib.auth.models import User
 
 # Create your views here.
 
@@ -96,6 +97,18 @@ class UserProfileViewUpdate(APIView):
             response_status = status.HTTP_400_BAD_REQUEST
 
         return Response(response_data, response_status)
+    
+    def delete(self, request, *args, **kwargs):
+        pk = self.kwargs.get('pk')
+        user = User.objects.get(pk=pk)
+
+        if request.user.id !=user.id:
+            message = f"{request.user} you don't have permissions to delete another user."
+            return Response({"detail": message}, status = status.HTTP_400_BAD_REQUEST)
+
+        user.delete()
+        return Response(f"User {user} deleted successfully.", status=status.HTTP_204_NO_CONTENT)
+
 
 
 class NetworkEdgeView(generics.GenericAPIView,
