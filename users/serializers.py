@@ -3,6 +3,18 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from .models import UserProfile, NetworkEdge
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token['username'] = user.username
+        return token
+
+
 class SignUpSerializer(ModelSerializer):
 
     def create(self, validated_data):
@@ -24,7 +36,7 @@ class UserViewSerializer(ModelSerializer):
     
     class Meta: 
         model = User
-        fields = ('username', 'first_name','last_name',)
+        fields = ('username', 'first_name','last_name','email', )
 
 class UserListSerializer(ModelSerializer):
     user = UserViewSerializer()
@@ -40,13 +52,6 @@ class UserListSerializer(ModelSerializer):
     def get_following_count(self, obj):
         return obj.following.count()
 
-# class UserProfileViewSerializer(ModelSerializer):
-
-
-
-#     class Meta : 
-#         model = UserProfile
-#         fields = '__all__'
 
 class UserProfileUpdateSerializer(ModelSerializer):
 
@@ -56,14 +61,14 @@ class UserProfileUpdateSerializer(ModelSerializer):
     def update(self, instance, validated_data) :
 
         user = instance.user
-        
         user.first_name = validated_data.pop('first_name',None)
         user.last_name = validated_data.pop('last_name',None)
-
         user.save()
 
         instance.bio = validated_data.get('bio', None)
-        instance.profile_pic_url = validated_data.get('profile_pic_url', None)
+        profile_pic = validated_data.get('profile_pic', None)
+        if profile_pic is not None:
+            instance.profile_pic = profile_pic
         instance.save()
 
         return instance
@@ -71,7 +76,7 @@ class UserProfileUpdateSerializer(ModelSerializer):
 
     class Meta : 
         model = UserProfile
-        fields = ('first_name', 'last_name', 'bio', 'profile_pic_url')
+        fields = ('first_name', 'last_name', 'bio', 'profile_pic')
 
 class NetworkEdgeCreateSerializer(ModelSerializer):
 

@@ -60,11 +60,10 @@ class UserProfileViewUpdate(APIView):
     authentication_classes = [JWTAuthentication, ]
     permission_classes = [IsAuthenticated, ]
 
-    def get(self, request, pk):
-        user = UserProfile.objects.filter(id=pk).first()
-
-        if user : 
-            serializer = UserListSerializer(instance=user)
+    def get(self, request):
+        user_profile = request.user.profile
+        if user_profile : 
+            serializer = UserListSerializer(user_profile)
             respon_data = {
                 "data": serializer.data,
                 "errors": None
@@ -99,13 +98,7 @@ class UserProfileViewUpdate(APIView):
         return Response(response_data, response_status)
     
     def delete(self, request, *args, **kwargs):
-        pk = self.kwargs.get('pk')
-        user = User.objects.get(pk=pk)
-
-        if request.user.id !=user.id:
-            message = f"{request.user} you don't have permissions to delete another user."
-            return Response({"detail": message}, status = status.HTTP_400_BAD_REQUEST)
-
+        user = request.user
         user.delete()
         return Response(f"User {user} deleted successfully.", status=status.HTTP_204_NO_CONTENT)
 
