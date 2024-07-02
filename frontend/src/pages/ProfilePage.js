@@ -4,9 +4,9 @@ import { Link } from "react-router-dom";
 
 const ProfilePage = () => {
 
-    const {profile, loading, deleteUser, } = useContext(AuthContext)
+    const {profile, loading, deleteUser, followers, following } = useContext(AuthContext)
     const [localProfile, setLocalProfile] = useState(profile)
-    // console.log("profile page : ",localProfile)
+    // console.log("profile page : ",followers)
 
     useEffect(() => {
         if(profile) {
@@ -43,6 +43,22 @@ const ProfilePage = () => {
             <p>Following : {localProfile.data.following_count}</p>
             <Link to='/profile/update'>Edit profile</Link>
             <button style={{background : 'red'}} onClick={deleteUser}>Delete User</button>
+            <h3>Followers : </h3>
+            <ul>
+                {followers.map(follower => (
+                    follower.from_user && follower.from_user.user && (
+                        <li key={follower.from_user.id}>{follower.from_user.user.username}</li>
+                    )
+                ))}
+            </ul>
+            <h3>Following : </h3>
+            <ul>
+                {following.map(follow => (
+                    follow.to_user && follow.to_user.user && (
+                        <li key={follow.to_user.id}>{follow.to_user.user.username}</li>
+                    )
+                ))}
+            </ul>
         </div>
     )
 }

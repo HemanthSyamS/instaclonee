@@ -23,7 +23,7 @@ const App = () => {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/profile" element={<PrivateRoute> <ProfilePage /> </PrivateRoute>} />
                     <Route path="/profile/update" element={<PrivateRoute> <UpdateProfile /> </PrivateRoute>} />
-                    <Route path="/find-friends" element={<FindFriends />} />
+                    <Route path="/find-friends" element={<PrivateRoute> <FindFriends /> </PrivateRoute>} />
 
                 </Routes>
                 </AuthProvider>

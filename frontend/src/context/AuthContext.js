@@ -20,6 +20,9 @@ export const AuthProvider = ({children}) => {
         const storedProfile = localStorage.getItem('profile')
         return storedProfile ? JSON.parse(storedProfile) : null
     })
+    const [followers, setFollowers] = useState([])
+    const [following, setFollowing] = useState([])
+    const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [errors, setErrors] = useState(null)
 
@@ -169,6 +172,90 @@ export const AuthProvider = ({children}) => {
         }
     },[authTokens, navigate])
 
+    const fetchFollowers = useCallback(async () => {
+        try {
+            const response = await axios.get('http://localhost:8000/users/edge/', {
+                headers : {
+                    'Authorization' : `Bearer ${authTokens?.access}`
+                },
+                params : { direction : 'followers' }
+            })
+            setFollowers(response.data.results || [])
+        } catch (error) {
+            console.error('Error fetching followers', error)
+            setFollowers([])
+        }
+    }, [authTokens])
+
+    const fetchFollowing = useCallback(async () => {
+        try {
+            const response = await axios.get('http://localhost:8000/users/edge/', {
+                headers : {
+                    'Authorization' : `Bearer ${authTokens?.access}`
+                },
+                params : { direction : 'following' }
+            })
+            setFollowing(response.data.results || [])
+        } catch (error) {
+            console.error('Error fetching following : ', error)
+            setFollowing([])
+        }
+    }, [authTokens])
+
+    const fetchUsers = useCallback(async () => {
+        try{
+            const response = await axios.get('http://localhost:8000/users/list/', {
+                headers : {
+                    'Authorization' : `Bearer ${authTokens?.access}`
+                }
+            })
+            setUsers(response.data || [])
+        } catch (error) {
+            console.error('Error fetching users : ', error)
+            setUsers([])
+        }
+    }, [authTokens])
+
+    const updateUserFollowStatus = useCallback(() => {
+        setUsers((prevUsers) => prevUsers.map(user => ({
+            ...user,
+            is_following : following.some(follow => follow.to_user.id === user.id)
+        })))
+    }, [following])
+
+    const followUser = async (userId) => {
+        try {
+            await axios.post('http://localhost:8000/users/edge/', {
+                to_user : userId
+            }, {
+                headers : {
+                    'Authorization' : `Bearer ${authTokens?.access}`
+                }
+            })
+            setFollowing((prev) => [...prev, {to_user : {id : userId }}])
+            updateUserFollowStatus()
+        } catch (error) {
+            console.error('Error following user', error)
+        }
+    }
+
+    const unfollowUser = async (userId) => {
+        try {
+            await axios.delete('http://localhost:8000/users/edge/', {
+                headers : {
+                    'Authorization' : `Bearer ${authTokens?.access}`
+                },
+                data : {
+                    to_user : userId
+                }
+            })
+            setFollowing((prev) => prev.filter(follow => follow.to_user.id !==userId))
+            updateUserFollowStatus()
+        } catch (error) {
+            console.error('Error unfollowing user', error)
+        }
+    }
+
     const deleteUser = async () => {
         try{
             setLoading(true)
@@ -194,8 +281,21 @@ export const AuthProvider = ({children}) => {
     useEffect(() => {
         if(authTokens){
             getProfile()
+
         }
     },[authTokens, getProfile])
+
+    useEffect(() => {
+        if (authTokens && profile) {
+            fetchFollowers()
+            fetchFollowing()
+            fetchUsers()
+        }
+    },[authTokens, profile, fetchFollowers, fetchFollowing, fetchUsers])
+
+    useEffect(() => {
+        updateUserFollowStatus()
+    }, [following, updateUserFollowStatus])
 
     const contextData = {
         user,
@@ -203,6 +303,9 @@ export const AuthProvider = ({children}) => {
         signupUser,
         loginUser,
         profile,
+        following,
+        followers,
+        users,
         loading,
         errors,
         logoutUser,
@@ -210,10 +313,11 @@ export const AuthProvider = ({children}) => {
         getProfile,
         deleteUser,
         updateProfile,
-        // getFollowers,
-        // getFollowing,
-        // followUser,
-        // unfollowUser,
+        fetchFollowers,
+        fetchFollowing,
+        fetchUsers,
+        followUser,
+        unfollowUser,
     }
     
     useEffect(() => {

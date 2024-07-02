@@ -50,7 +50,7 @@ def user_list(request) :
     print(f"On line 46 : {request.user}")
     users = UserProfile.objects.all()
     
-    serialized_data = UserListSerializer(instance = users, many = True)
+    serialized_data = UserListSerializer(instance = users, many = True, context = {'request': request})
 
     return Response(serialized_data.data, status=status.HTTP_200_OK)
 

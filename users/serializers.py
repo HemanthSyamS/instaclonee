@@ -42,6 +42,7 @@ class UserListSerializer(ModelSerializer):
     user = UserViewSerializer()
     follower_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
 
     class Meta : 
         model = UserProfile
@@ -51,6 +52,11 @@ class UserListSerializer(ModelSerializer):
         return obj.followers.count()
     def get_following_count(self, obj):
         return obj.following.count()
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return NetworkEdge.objects.filter(from_user = request.user.profile, to_user = obj).exists()
+        return False
 
 
 class UserProfileUpdateSerializer(ModelSerializer):
@@ -86,7 +92,6 @@ class NetworkEdgeCreateSerializer(ModelSerializer):
 
 class NetworkEdgeFollowingSerializer(ModelSerializer):
 
-    # from_user = UserListSerializer()
     to_user = UserListSerializer()
     
     class Meta:
@@ -96,7 +101,6 @@ class NetworkEdgeFollowingSerializer(ModelSerializer):
 class NetworkEdgeFollowersSerializer(ModelSerializer):
 
     from_user = UserListSerializer()
-    # to_user = UserListSerializer()
     
     class Meta:
         model = NetworkEdge

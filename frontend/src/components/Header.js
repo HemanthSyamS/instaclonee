@@ -15,6 +15,7 @@ const Header = () => {
                 <div>
                     <Link to='/profile'>Profile</Link>
                     <span> | </span>
+                    <Link to='/find-friends'>Find Friends</Link>
                     <p onClick={logoutUser}>Logout</p>
                 </div>
             ) : (
