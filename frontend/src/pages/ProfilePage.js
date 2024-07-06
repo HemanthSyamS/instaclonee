@@ -10,9 +10,16 @@ const ProfilePage = () => {
 
     useEffect(() => {
         if(profile) {
-            setLocalProfile(profile)
+            setLocalProfile(({
+                ...profile,
+                data : {
+                    ...profile.data,
+                    follower_count : followers.length,
+                    following_count : following.length,
+                }
+            }))
         }
-    },[profile])
+    },[profile, followers, following])
 
     if(loading) {
         return <div>Loading ...</div>

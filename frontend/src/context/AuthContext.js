@@ -1,7 +1,20 @@
-import axios from 'axios'
 import React, { createContext, useCallback, useEffect, useState } from 'react'
 import {jwtDecode} from 'jwt-decode'
 import { useNavigate } from 'react-router-dom'
+import {
+    setAuthToken,
+    signupUser,
+    loginUser,
+    refreshToken,
+    getProfile,
+    updateProfile,
+    deleteUser,
+    fetchFollowers,
+    fetchFollowing,
+    fetchUsers,
+    followUser,
+    unfollowUser,
+} from './api'
 
 const AuthContext = createContext()
 
@@ -28,12 +41,16 @@ export const AuthProvider = ({children}) => {
 
     const navigate = useNavigate()
 
-    const signupUser = async (e) => {
+    useEffect(() => {
+        setAuthToken(authTokens ? authTokens.access : null)
+    })
+
+    const handleSignup = async (e) => {
         e.preventDefault()
         const {username, email, password } = e.target
         try{
             setLoading(true)
-            const response = await axios.post('http://localhost:8000/users/signup/',{
+            const response = await signupUser({
                 username : username.value,
                 email : email.value,
                 password : password.value,
@@ -50,12 +67,12 @@ export const AuthProvider = ({children}) => {
         }
     }
 
-    const loginUser = async (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault()
         const {username, password} = e.target
         try{
             setLoading(true)
-            const response = await axios.post('http://localhost:8000/users/login/',{
+            const response = await loginUser({
                 username : username.value,
                 password : password.value,
             })
@@ -84,7 +101,7 @@ export const AuthProvider = ({children}) => {
         }
     }
 
-    const logoutUser = useCallback((e) => {
+    const handleLogout = useCallback((e) => {
         localStorage.removeItem('authTokens')
         localStorage.removeItem('profile')
         setAuthTokens(null)
@@ -94,15 +111,13 @@ export const AuthProvider = ({children}) => {
         navigate('/login')
     },[navigate])
 
-    const updateToken = useCallback(async () => {   
+    const handleTokenRefresh = useCallback(async () => {   
         if(!authTokens.access){
-            logoutUser()
+            handleLogout()
             return
         }
         try {
-            const response = await axios.post('http://localhost:8000/users/token/refresh/', {
-                refresh: authTokens?.refresh,
-            })
+            const response = await refreshToken(authTokens?.refresh)
             const data = response.data
             if (response.status === 200) {
                 const newTokens = {...authTokens, access : data.access}
@@ -110,52 +125,43 @@ export const AuthProvider = ({children}) => {
                 setUser(jwtDecode(data.access))
                 localStorage.setItem('authTokens', JSON.stringify(newTokens))
             } else {
-                logoutUser()
+                handleLogout()
             }
         } catch (error) {
-            logoutUser()
+            handleLogout()
             console.error(`Error refreshing token: ${error}`)
         } finally{
             setLoading(false)
         }
-    },[authTokens, logoutUser])
+    },[authTokens, handleLogout])
 
-    const getProfile = useCallback(async () => {
+    const handleGetProfile = useCallback(async () => {
         if(profile) {
             setLoading(false)
             return
         }
         try{
             setLoading(true)
-            const response = await axios.get('http://localhost:8000/users/profile/',{
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                }
-            })
+            const response = await getProfile()
             if(response.status === 200) {
                 setProfile(response.data)
                 localStorage.setItem('profile', JSON.stringify(response.data))
             } else if(response.status === 401) {
-                logoutUser()
+                handleLogout()
             }
         } catch (error) {
             console.error('Error fetching profile details', error)
-            logoutUser()
+            handleLogout()
         } finally{
             setLoading(false)
         }
-    },[authTokens, logoutUser, profile])
+    },[ handleLogout, profile])
     
-    const updateProfile = useCallback(async (formData) => {
+    const handleUpdateProfile = useCallback(async (formData) => {
         setErrors(null);
         try{
             setLoading(true)
-            const response = await axios.post('http://localhost:8000/users/profile/update/',formData,{
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`,
-                    'Content-Type' : 'multipart/form-data'
-                }
-            })
+            const response = await updateProfile(formData)
             if (response.status === 200) {
                 setProfile(response.data)
                 localStorage.setItem('profile', JSON.stringify(response.data))
@@ -170,103 +176,41 @@ export const AuthProvider = ({children}) => {
         } finally {
             setLoading(false)
         }
-    },[authTokens, navigate])
+    },[ navigate])
 
-    const fetchFollowers = useCallback(async () => {
+    const handleFollowUser = async (userId) => {
         try {
-            const response = await axios.get('http://localhost:8000/users/edge/', {
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                },
-                params : { direction : 'followers' }
+            await followUser(userId)
+            setFollowing((prev) => {
+                const updatedFollowing = [...prev, {to_user : {id : userId }}]
+                updateUserFollowStatus(updatedFollowing)
+                return updatedFollowing
             })
-            setFollowers(response.data.results || [])
-        } catch (error) {
-            console.error('Error fetching followers', error)
-            setFollowers([])
-        }
-    }, [authTokens])
-
-    const fetchFollowing = useCallback(async () => {
-        try {
-            const response = await axios.get('http://localhost:8000/users/edge/', {
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                },
-                params : { direction : 'following' }
-            })
-            setFollowing(response.data.results || [])
-        } catch (error) {
-            console.error('Error fetching following : ', error)
-            setFollowing([])
-        }
-    }, [authTokens])
-
-    const fetchUsers = useCallback(async () => {
-        try{
-            const response = await axios.get('http://localhost:8000/users/list/', {
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                }
-            })
-            setUsers(response.data || [])
-        } catch (error) {
-            console.error('Error fetching users : ', error)
-            setUsers([])
-        }
-    }, [authTokens])
-
-    const updateUserFollowStatus = useCallback(() => {
-        setUsers((prevUsers) => prevUsers.map(user => ({
-            ...user,
-            is_following : following.some(follow => follow.to_user.id === user.id)
-        })))
-    }, [following])
-
-    const followUser = async (userId) => {
-        try {
-            await axios.post('http://localhost:8000/users/edge/', {
-                to_user : userId
-            }, {
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                }
-            })
-            setFollowing((prev) => [...prev, {to_user : {id : userId }}])
-            updateUserFollowStatus()
         } catch (error) {
             console.error('Error following user', error)
         }
     }
 
-    const unfollowUser = async (userId) => {
+    const handleUnfollowUser = async (userId) => {
         try {
-            await axios.delete('http://localhost:8000/users/edge/', {
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                },
-                data : {
-                    to_user : userId
-                }
+            await unfollowUser(userId)
+            setFollowing((prev) => {
+                const updatedFollowing = prev.filter(follow => follow.to_user.id !==userId)
+                updateUserFollowStatus(updatedFollowing)
+                return updatedFollowing
             })
-            setFollowing((prev) => prev.filter(follow => follow.to_user.id !==userId))
-            updateUserFollowStatus()
         } catch (error) {
             console.error('Error unfollowing user', error)
         }
     }
 
-    const deleteUser = async () => {
+    const handleDeleteUser = async () => {
         try{
             setLoading(true)
-            const response = await axios.delete('http://localhost:8000/users/profile/delete/',{
-                headers : {
-                    'Authorization' : `Bearer ${authTokens?.access}`
-                }
-            })
+            const response = await deleteUser()
             if(response.status === 204) {
                 alert("User deleted successfully !")
-                logoutUser()
+                handleLogout()
                 setAuthTokens(null)
                 setProfile(null)
                 navigate('/signup')
@@ -280,55 +224,65 @@ export const AuthProvider = ({children}) => {
 
     useEffect(() => {
         if(authTokens){
-            getProfile()
+            handleGetProfile()
 
         }
-    },[authTokens, getProfile])
+    },[authTokens, handleGetProfile])
 
     useEffect(() => {
         if (authTokens && profile) {
-            fetchFollowers()
-            fetchFollowing()
-            fetchUsers()
+            fetchFollowers().then(response => setFollowers(response.data.results))
+            fetchFollowing().then(response => setFollowing(response.data.results))
+            fetchUsers().then(response => setUsers(response.data))
         }
-    },[authTokens, profile, fetchFollowers, fetchFollowing, fetchUsers])
+    },[authTokens, profile,])
 
-    useEffect(() => {
-        updateUserFollowStatus()
-    }, [following, updateUserFollowStatus])
+    const updateUserFollowStatus = useCallback((updatedFollowing) => {
+        setUsers((prevUsers) => prevUsers.map(user => ({
+            ...user,
+            is_following : updatedFollowing.some(follow => follow.to_user.id === user.id)
+        })))
+        setProfile((prevProfile) => ({
+            ...prevProfile,
+            data : {
+                ...prevProfile.data,
+                following_count : updatedFollowing.length,
+            }
+        }))
+    },[])
 
     const contextData = {
         user,
         authTokens,
-        signupUser,
-        loginUser,
+        signupUser : handleSignup,
+        loginUser : handleLogin,
         profile,
         following,
         followers,
         users,
         loading,
         errors,
-        logoutUser,
-        updateToken,
-        getProfile,
-        deleteUser,
-        updateProfile,
+        logoutUser : handleLogout,
+        updateToken : handleTokenRefresh,
+        getProfile : handleGetProfile,
+        deleteUser : handleDeleteUser,
+        updateProfile : handleUpdateProfile,
         fetchFollowers,
         fetchFollowing,
         fetchUsers,
-        followUser,
-        unfollowUser,
+        followUser : handleFollowUser,
+        unfollowUser : handleUnfollowUser,
     }
     
     useEffect(() => {
         const REFRESH_INTERVAL = 1000 * 60 * 4
         const interval = setInterval(() => {
             if(authTokens) {
-                updateToken()
+                handleTokenRefresh()
             }
         }, REFRESH_INTERVAL);
         return () => clearInterval(interval)
-    },[authTokens, updateToken])
+    },[authTokens, handleTokenRefresh])
 
     return (
         <AuthContext.Provider value={contextData}>
